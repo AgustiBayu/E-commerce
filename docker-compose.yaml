@@ -1,0 +1,44 @@
+version: "3.8"
+
+services:
+  db_postgres:
+    image: postgres:15-alpine
+    container_name: db_postgres
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - etl_network
+
+  etl_service:
+    build:
+      context: .
+      dockerfile: docker/spark/Dockerfile
+    container_name: etl_pipeline
+    restart: on-failure
+    depends_on:
+      - db_postgres
+    volumes:      
+      - ./data:/app/data
+      - ./config.yaml:/app/config.yaml
+    environment:      
+      DB_URL: jdbc:postgresql://db_postgres:5432/${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}      
+      CONFIG_PATH: /app/config.yaml
+    env_file:
+      - .env
+    networks:
+      - etl_network
+
+networks:
+  etl_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
